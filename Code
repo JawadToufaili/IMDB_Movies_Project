@@ -1,0 +1,1059 @@
+# Team 1: Regression Impossible
+
+# Import data set
+
+# Attach data set
+attach(films)
+
+# Install and loading all packages:
+library(dplyr)
+library(earth)
+library(party)
+library(e1071)
+library(reshape2)
+library(corrplot)
+library(ggplot2)
+library("Hmisc")
+library(car)
+require(lmtest)
+require(plm)
+require(caTools)
+require(methods)
+require(ggplot2)
+library(boot)
+library(splines)
+library(ggpubr)
+library(stargazer)
+install.packages('Boruta')
+
+# Visualizing the target variable
+summary(imdb_score)
+boxplot(imdb_score)
+
+# Data Pre-Processing 
+# Group the languages and find the top languages 
+languages = films %>% group_by(main_lang) %>% summarise(n())
+print(languages)
+
+# Finding the number to choose if an actor/director is famous or not 
+actors = films %>% group_by(main_actor1_name) %>% summarise(n())
+print(actors) 
+
+actors2 = films %>% group_by(main_actor2_name) %>% summarise(n())
+print(actors2)
+
+directors = films %>% group_by(main_director_name) %>% summarise(n())
+print(directors) 
+
+prod = films %>% group_by(main_production_company) %>% summarise(n())
+print(prod)
+
+# Assuming that actors and directors are famous (by having a certain number of movies)
+top_actors=c('Robert De Niro',
+            'Jack Nicholson',
+            'Marlon Brando',
+            'Denzel Washington',
+            'Katharine Hepburn',
+            'Humphrey Bogart',
+            'Meryl Streep',
+            'Daniel Day-Lewis',
+            'Sidney Poitier',
+            'Clark Gable',
+            'Ingrid Bergman',
+            'Tom Hanks',
+            'Elizabeth Taylor',
+            'Bette Davis',
+            'Gregory Peck',
+            'Leonardo DiCaprio',
+            'Cate Blanchett',
+            'Audrey Hepburn',
+            'Spencer Tracy',
+            'Kate Winslet',
+            'Shah Rukh Khan',
+            'Viola Davis',
+            'Sophia Loren',
+            'Cary Grant',
+            'Vivien Leigh',
+            'Marilyn Monroe',
+            'Laurence Olivier',
+            'James Stewart',
+            'Steve McQueen',
+            'Halle Berry',
+            'Julia Roberts',
+            'Bruce Lee',
+            'Jodie Foster',
+            'Judy Garland',
+            'Henry Fonda',
+            'Morgan Freeman',
+            'Catherine Deneuve',
+            'Grace Kelly',
+            'Helen Mirren',
+            'James Cagney',
+            'Angela Bassett',
+            'Johnny Depp',
+            'Greta Garbo',
+            'Olivia de Havilland',
+            'Charles Chaplin',
+            'Setsuko Hara',
+            'Julie Andrews',
+            'Montgomery Clift',
+            'Isabelle Huppert',
+            'Al Pacino',
+            'Kirk Douglas',
+            'Marcello Mastroianni',
+            'Gene Kelly',
+            'James Dean',
+            'Will Smith',
+            'Toshir? Mifune',
+            'John Wayne',
+            'Mohanlal',
+            'Harrison Ford',
+            'Gary Cooper',
+            'G?rard Depardieu',
+            'Forest Whitaker',
+            'Dustin Hoffman',
+            'Charlton Heston',
+            'Tom Cruise',
+            'Paul Newman',
+            'Samuel L. Jackson',
+            "Peter O'Toole",
+            'Robin Williams',
+            'Don Cheadle',
+            'Antonio Banderas',
+            'Eddie Murphy',
+            'Anthony Hopkins',
+            'Omar Sharif',
+            'Heath Ledger',
+            'Diane Keaton',
+            'Rita Hayworth',
+            'Natalie Wood',
+            'Joan Crawford',
+            'Susan Sarandon',
+            'Glenn Close',
+            'Joan Fontaine',
+            'Julianne Moore',
+            'Regina King',
+            'Angelina Jolie',
+            'Jane Fonda',
+            'Liv Ullmann',
+            'Natalie Portman',
+            'Sandra Bullock',
+            'Deborah Kerr',
+            'Emma Thompson',
+            'Michelle Pfeiffer',
+            'Faye Dunaway',
+            'Pen?lope Cruz',
+            'Nicole Kidman',
+            'Salma Hayek',
+            'Sigourney Weaver',
+            'Kathy Bates',
+            'Lucy Liu',
+            'Amy Adams',
+            'Jeff Bridges',
+            'Ben Kingsley',
+            'Tommy Lee Jones',
+            'Robert Redford',
+            'Jack Lemmon',
+            'Christopher Plummer',
+            'George C. Scott',
+            'Joaquin Phoenix',
+            'Christopher Walken',
+            'Philip Seymour Hoffman',
+            'George Clooney',
+            'Gene Hackman',
+            'Bruce Willis',
+            'Sean Connery',
+            'Ian McKellen',
+            'Russell Crowe',
+            'Bill Murray',
+            'Nicolas Cage',
+            'Joe Pesci',
+            'Brad Pitt',
+            'Kevin Costner',
+            'Donald Sutherland',
+            'Clint Eastwood',
+            'Michael Douglas',
+            'Robert Downey Jr.',
+            'Ava Gardner',
+            'Sally Field',
+            'Doris Day',
+            'Shirley MacLaine',
+            'Holly Hunter',
+            'Hilary Swank',
+            'Claudette Colbert',
+            'Diane Lane',
+            'Jessica Lange',
+            'Gloria Swanson',
+            'Lauren Bacall',
+            'Frances McDormand',
+            'Norma Shearer',
+            'Bette Midler',
+            'Mary Tyler Moore',
+            'Anna Magnani',
+            'Judi Dench',
+            'Sharon Stone',
+            'Kim Basinger',
+            'Glenda Jackson',
+            'Donna Reed',
+            'Demi Moore',
+            'Anne Hathaway',
+            'Liza Minnelli',
+            'Geena Davis',
+            'Peter Sellers',
+            'Woody Allen',
+            'Mel Gibson',
+            'Jim Carrey',
+            'Mark Wahlberg',
+            'Steve Martin',
+            'Javier Bardem',
+            'Christoph Waltz',
+            'Tim Robbins',
+            'Arnold Schwarzenegger',
+            'Sylvester Stallone',
+            'Viggo Mortensen',
+            'Christopher Lee',
+            'Geoffrey Rush',
+            'Alec Guinness',
+            'Richard Burton',
+            'Alec Baldwin',
+            'James Caan',
+            'Chiwetel Ejiofor',
+            'Mads Mikkelsen',
+            'Ben Stiller',
+            'Willem Dafoe',
+            'Ed Harris',
+            'Harvey Keitel',
+            'Jon Voight',
+            'Drew Barrymore',
+            'Winona Ryder',
+            'Kathleen Turner',
+            'Uma Thurman',
+            'Rene Russo',
+            'Whoopi Goldberg',
+            'Annette Bening',
+            'Maggie Smith',
+            'Barbra Streisand',
+            'Jennifer Lawrence',
+            'Joanne Woodward',
+            'Mercedes McCambridge',
+            'Anjelica Huston',
+            'Dianne Wiest',
+            'Goldie Hawn',
+            'Claudia Cardinale',
+            'Gwyneth Paltrow',
+            'Charlize Theron',
+            'Debra Winger',
+            'Marion Cotillard',
+            'Christina Ricci',
+            'Juliette Binoche',
+            'Daryl Hannah',
+            'Shirley Booth',
+            'Reese Witherspoon')
+
+
+top_directors=c( 'Steven Spielberg',
+  'Martin Scorsese',
+  'Alfred Hitchcock',
+  'Stanley Kubrick',
+  'Francis Ford Coppola',
+  'Woody Allen',
+  'Billy Wilder',
+  'John Huston',
+  'Peter Jackson',
+  'Milos Forman',
+  'Clint Eastwood',
+  'David Lean',
+  'Ingmar Bergman',
+  'Joel Coen',
+  'John Ford',
+  'James Cameron',
+  'Sidney Lumet',
+  'Charles Chaplin',
+  'Tim Burton',
+  'Roman Polanski',
+  'Quentin Tarantino',
+  'Danny Boyle',
+  'Ridley Scott',
+  'David Fincher',
+  'Christopher Nolan')
+top_production_companies=c( 'Warner Bros.',
+                              'Sony Pictures Motion Picture Group',
+                              'Walt Disney Studios',
+                              'Universal Pictures',
+                              '20th Century Fox',
+                              'Paramount Pictures',
+                              'Lionsgate Films',
+                              'The Weinstein Company',
+                              'Metro-Goldwyn-Mayer Studios',
+                              'DreamWorks Pictures',
+                              'NBCUniversal',
+                              'RKO Radio Pictures',
+                              'United Artists')
+films <- read.csv("D:/Downloads/films_fall_2020.csv")
+attach(films)
+films$famous_main_actor_1 = ifelse(main_actor1_name %in% top_actors, 1, 0)
+films$famous_main_actor_2 = ifelse(main_actor2_name %in% top_actors, 1, 0)
+films$famous_director = ifelse(main_director_name %in% top_directors, 1, 0)
+attach(films)
+
+# Dummifying the languages into English, French, Deutsch, Espanol and others
+films$lang_english = ifelse(main_lang == "English", 1, 0)
+films$lang_french = ifelse(main_lang == "FranÃ§ais", 1, 0)
+films$lang_deutsch = ifelse(main_lang == "Deutsch", 1, 0)
+films$lang_spanish = ifelse(main_lang == "EspaÃ±ol", 1, 0)
+attach(films)
+
+# Dummifying the production company 
+films$famous_production_company = ifelse(main_production_company %in% top_production_companies, 1, 0)
+attach(films)
+
+# Dummifying years: it is more logical to have them as dummies rather than as continuous variables
+# Any movie with year_of_release < 1920 would have all 0 values
+films$year_1910s=ifelse( year_of_release<1920,1,0)
+films$year_1920s=ifelse(year_of_release>=1920 & year_of_release<1930,1,0)
+films$year_1930s=ifelse(year_of_release>=1930 & year_of_release<1940,1,0)
+films$year_1940s=ifelse(year_of_release>=1940 & year_of_release<1950,1,0)
+films$year_1950s=ifelse(year_of_release>=1950 & year_of_release<1960,1,0)
+films$year_1960s=ifelse(year_of_release>=1960 & year_of_release<1970,1,0)
+films$year_1970s=ifelse(year_of_release>=1970 & year_of_release<1980,1,0)
+films$year_1980s=ifelse(year_of_release>=1980 & year_of_release<1990,1,0)
+films$year_1990s=ifelse(year_of_release>=1990 & year_of_release<2000,1,0)
+films$year_2000s=ifelse(year_of_release>=2000 & year_of_release<2010,1,0)
+
+attach(films)
+
+# Dummify months
+films$month_1=ifelse(month_of_release==1,1,0)
+films$month_2=ifelse(month_of_release==2,1,0)
+films$month_3=ifelse(month_of_release==3,1,0)
+films$month_4=ifelse(month_of_release==4,1,0)
+films$month_5=ifelse(month_of_release==5,1,0)
+films$month_6=ifelse(month_of_release==6,1,0)
+films$month_7=ifelse(month_of_release==7,1,0)
+films$month_8=ifelse(month_of_release==8,1,0)
+films$month_9=ifelse(month_of_release==9,1,0)
+films$month_10=ifelse(month_of_release==10,1,0)
+films$month_11=ifelse(month_of_release==11,1,0)
+
+attach(films)
+
+# Dropping the predictors that won't have an impact on target variable 
+# title, imdb_id, imdb_url don't provide any useful information 
+# The columns actor 1 & 2 names, director name and main language have been dummified, so the original columns are dropped
+# Others were intuitively taken out 
+
+df = subset(films, select = -c(title, imdb_id, imdb_url, main_lang, main_actor1_name, main_actor2_name, main_actor3_name, main_actor3_is_female, main_director_name, main_producer_name,editor_name, main_production_company, main_production_country,month_of_release,year_of_release) )
+attach(df)
+
+# Feature selection
+# IMPORTANT: The following 2 approaches take a lot of computation time. Please skip to line 366 
+
+#---------------------------------------------------------------------------------------------------------
+''' 
+Testing the strength of our predictors to further drop predictors with no impact on our target variables:
+# Method 1
+marsModel <- earth(imdb_score ~ ., data=df) # build model
+ev <- evimp (marsModel)
+plot(ev)
+
+# Method 2 using Boruta Package
+library(Boruta)
+`%notin%` <- Negate(`%in%`)
+boruta_output <- Boruta(imdb_score ~ ., data=na.omit(df), doTrace=2)
+boruta_signif <- names(boruta_output$finalDecision[boruta_output$finalDecision %in% c("Confirmed", "Tentative")])
+boruta_not_signif <- names(boruta_output$finalDecision[boruta_output$finalDecision %notin% c("Confirmed", "Tentative")])
+print(boruta_signif)
+print(boruta_not_signif)
+plot(boruta_output, cex.axis=.7, las=2, xlab="", main="Variable Importance") 
+'''
+#---------------------------------------------------------------------------------------------------------
+
+# From the above results its obvious that the following predictors have no effect on our model:
+# Genre_Realitytv , genre_music, genre_western, genre_sport, genre_short_film,genre_war, director_is_female, genre_mystery,language_deutch, language_spanish
+
+df = subset(df, select = -c(genre_realitytv,genre_music,genre_western,genre_war,genre_sport,genre_shortfilm,main_director_is_female,lang_deutsch,lang_spanish) )
+attach(df)
+
+#---------------------------------------------------------------------------------------------------------
+
+# Creating new data sets for binary/numerical 
+
+# Defining predictors and target variables 
+Y = subset(df, select= c(imdb_score))
+y = unlist(Y)
+X = subset(df, select = -c(imdb_score))
+Z = as.data.frame(cbind(y,X))
+
+# Binary columns and Numerical columns
+new = apply(X,2,function(x) { all(x %in% 0:1) })
+numerical_columns=c()
+binary_columns=c()
+for ( i in 1:length(new)){
+  if (new[i]==TRUE){
+    binary_columns=c(binary_columns,names(new[i]))
+  }
+  else{
+    
+    numerical_columns=c(numerical_columns, names(new[i]))
+  }
+}
+numerical_df = data.frame(budget_in_millions,duration_in_hours,total_number_languages,total_number_of_actors,total_number_of_directors,total_number_of_producers,total_number_of_production_companies,total_number_of_production_countries)
+
+# Plotting histogram and box plot for each variable
+for (i in colnames(X)){
+  if (names(X[i]) %in% numerical_columns){
+    boxplot(X[[i]],col="blue",main=paste("Graph of", names(X[i])))
+  }
+  else {
+    hist(X[[i]],col="blue",main=paste("Graph of", names(X[i])))
+    
+  }
+}
+
+gg1=ggplot(df, aes(x = budget_in_millions, fill = cut(imdb_score, c(0,2,4,6,8,10)))) + geom_histogram(color = "black")+
+  labs(title = "Budget frequency distribution for movies", x = "Budget in Millions", y = "Number of movies") + theme_bw() +
+  scale_fill_manual(name = "IMDB Score", labels = c("<2", "2-4", "4-6", "6-8", "8-10"), values = c("#800000", "#FFFF00", "#00FF00", "#0000FF", "#FF00FF")) +
+  theme(plot.title = element_text(face = "bold", hjust = 0.5), legend.text = element_text(size = 12), axis.title = element_text(size = 12, face = "bold"))
+
+gg2=ggplot(df, aes(x = duration_in_hours, fill = cut(imdb_score, c(0,2,4,6,8,10)))) + geom_histogram(color = "black")+
+  labs(title = "Duration frequency distribution for movies", x = "Duration in Hours", y = "Number of movies") + theme_bw() +
+  scale_fill_manual(name = "IMDB Score", labels = c("<2", "2-4", "4-6", "6-8", "8-10"), values = c("#800000", "#FFFF00", "#00FF00", "#0000FF", "#FF00FF")) +
+  theme(plot.title = element_text(face = "bold", hjust = 0.5), legend.text = element_text(size = 12), axis.title = element_text(size = 12, face = "bold"))
+
+gg3=ggplot(df, aes(x = total_number_of_actors, fill = cut(imdb_score, c(0,2,4,6,8,10)))) + geom_histogram(color = "black")+
+  labs(title = "Number of actor frequency distribution for movies", x = "Number of actors", y = "Number of movies") + theme_bw() +
+  scale_fill_manual(name = "IMDB Score", labels = c("<2", "2-4", "4-6", "6-8", "8-10"), values = c("#800000", "#FFFF00", "#00FF00", "#0000FF", "#FF00FF")) +
+  theme(plot.title = element_text(face = "bold", hjust = 0.5), legend.text = element_text(size = 12), axis.title = element_text(size = 12, face = "bold"))
+
+gg4=ggplot(df, aes(x = total_number_of_production_companies, fill = cut(imdb_score, c(0,2,4,6,8,10)))) + geom_histogram(color = "black")+
+  labs(title = "Number of production companies frequency distribution for movies", x = "Number of Production companies", y = "Number of movies") + theme_bw() +
+  scale_fill_manual(name = "IMDB Score", labels = c("<2", "2-4", "4-6", "6-8", "8-10"), values = c("#800000", "#FFFF00", "#00FF00", "#0000FF", "#FF00FF")) +
+  theme(plot.title = element_text(face = "bold", hjust = 0.5), legend.text = element_text(size = 12), axis.title = element_text(size = 12, face = "bold"))
+
+gg5=ggplot(df, aes(x = total_number_of_production_countries, fill = cut(imdb_score, c(0,2,4,6,8,10)))) + geom_histogram(color = "black")+
+  labs(title = "Number of production countries frequency distribution for movies", x = "Number of Production Countries", y = "Number of movies") + theme_bw() +
+  scale_fill_manual(name = "IMDB Score", labels = c("<2", "2-4", "4-6", "6-8", "8-10"), values = c("#800000", "#FFFF00", "#00FF00", "#0000FF", "#FF00FF")) +
+  theme(plot.title = element_text(face = "bold", hjust = 0.5), legend.text = element_text(size = 12), axis.title = element_text(size = 12, face = "bold"))
+
+gg6=ggplot(df, aes(x = total_number_of_producers, fill = cut(imdb_score, c(0,2,4,6,8,10)))) + geom_histogram(color = "black")+
+  labs(title = "Number of producers frequency distribution for movies", x = "Number of Producers", y = "Number of movies") + theme_bw() +
+  scale_fill_manual(name = "IMDB Score", labels = c("<2", "2-4", "4-6", "6-8", "8-10"), values = c("#800000", "#FFFF00", "#00FF00", "#0000FF", "#FF00FF")) +
+  theme(plot.title = element_text(face = "bold", hjust = 0.5), legend.text = element_text(size = 12), axis.title = element_text(size = 12, face = "bold"))
+
+gg7=ggplot(df, aes(x = total_number_of_directors, fill = cut(imdb_score, c(0,2,4,6,8,10)))) + geom_histogram(color = "black")+
+  labs(title = "Number of directors frequency distribution for movies", x = "Number of Directors", y = "Number of movies") + theme_bw() +
+  scale_fill_manual(name = "IMDB Score", labels = c("<2", "2-4", "4-6", "6-8", "8-10"), values = c("#800000", "#FFFF00", "#00FF00", "#0000FF", "#FF00FF")) +
+  theme(plot.title = element_text(face = "bold", hjust = 0.5), legend.text = element_text(size = 12), axis.title = element_text(size = 12, face = "bold"))
+
+gg8=ggplot(df, aes(x = total_number_languages, fill = cut(imdb_score, c(0,2,4,6,8,10)))) + geom_histogram(color = "black")+
+  labs(title = "Number of languages frequency distribution for movies", x = "Number of Producers", y = "Number of languages") + theme_bw() +
+  scale_fill_manual(name = "IMDB Score", labels = c("<2", "2-4", "4-6", "6-8", "8-10"), values = c("#800000", "#FFFF00", "#00FF00", "#0000FF", "#FF00FF")) +
+  theme(plot.title = element_text(face = "bold", hjust = 0.5), legend.text = element_text(size = 12), axis.title = element_text(size = 12, face = "bold"))
+
+
+figure <- ggarrange(gg1, gg2, gg3,gg4,gg5,gg6,gg7,gg8,
+                    
+                    ncol = 4, nrow = 2)
+figure
+
+# Skewness
+skewness_data = data.frame(
+  variables = numerical_columns,
+  skewness = c(skewness(budget_in_millions),skewness(duration_in_hours),skewness(total_number_languages),skewness(total_number_of_actors),skewness(total_number_of_directors),skewness(total_number_of_producers),skewness(total_number_of_production_companies),skewness(total_number_of_production_countries))
+)
+skewness_data$type=ifelse(((skewness_data$skewness<0.5) & (skewness_data$skewness>-0.5)),"Symmetrical",ifelse(((skewness_data$skewness>1)||(skewness_data$skewness<-1)),"Highly Skewed","Moderately"))
+print(skewness_data)
+
+# Removing Skewness using log function (to the base 10)
+hist(log(budget_in_millions))
+hist(budget_in_millions)
+# Instead of creating new variables, we can just override the value of original variable => budget_in_millions = log(budget_in_millions)
+
+# collinearity and correlation
+
+# 3 ways
+# 1st Way - Heat map
+
+X.cor = cor(numerical_df, method = c("pearson"))
+X.rcorr = rcorr(as.matrix(numerical_df))
+X.rcorr
+# 1st graph matrix
+corrplot(X.cor)
+melted_cormat <- melt(X.cor)
+head(melted_cormat)
+# 2nd graph matrix
+ggplot(data = melted_cormat, aes(Var2, Var1, fill = value))+
+  geom_tile(color = "white")+
+  scale_fill_gradient2(low = "blue", high = "red", mid = "white", 
+                       midpoint = 0, limit = c(-1,1), space = "Lab", 
+                       name="Pearson\nCorrelation") +
+  theme_minimal()+ 
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, 
+                                   size = 12, hjust = 1))+
+  coord_fixed()
+
+# 2nd way - Correlation Matrix  - No high collinearity found
+quantvars = numerical_df[,]
+corr_matrix = cor(quantvars)
+round(corr_matrix,2)
+
+# 3rd Way - VIF - To confirm that no collinearity is found
+attach(df)
+formula = imdb_score~budget_in_millions + duration_in_hours + total_number_languages + total_number_of_actors + total_number_of_directors + total_number_of_producers+total_number_of_production_companies+total_number_of_production_countries+genre_action+genre_adventure+genre_animation+genre_biography+genre_comedy+genre_crime+genre_documentary+genre_drama+genre_family+genre_fantasy+genre_filmnoir+genre_history+genre_horror+genre_musical+genre_romance+genre_scifi+genre_thriller+main_actor1_is_female+main_actor2_is_female+famous_main_actor_1+famous_main_actor_2+famous_director+famous_production_company+lang_english+lang_french+year_1910s+year_1920s+year_1930s+year_1940s+year_1950s+year_1960s+year_1970s+year_1980s+year_1990s+year_2000s + month_1+month_2+month_3+month_4+month_5+month_6+month_7+month_8+month_9+month_10+month_11
+mreg1 = lm(formula) 
+vif(mreg1)
+
+# No multicollinearity observed
+
+# Outliers - Bonferroni Test
+outlierTest(mreg1)
+
+O1 = outlierTest(lm(imdb_score~budget_in_millions))
+O2 = outlierTest(lm(imdb_score~duration_in_hours))
+O3 = outlierTest(lm(imdb_score~total_number_languages))
+O4 = outlierTest(lm(imdb_score~total_number_of_actors))
+O5 = outlierTest(lm(imdb_score~total_number_of_directors))
+O6 = outlierTest(lm(imdb_score~total_number_of_producers))
+O7 = outlierTest(lm(imdb_score~total_number_of_production_companies))
+O8 = outlierTest(lm(imdb_score~total_number_of_production_countries))
+
+# Remove outliers
+df1 = df[-c(532,641,907,2071,2342,2754),]
+attach(df1)
+
+#---------------------------------------------------------------------------------------------------------
+
+# Exploring Variable Relationships
+
+# Predictor 1 - Budget
+budget_lm = lm(imdb_score~budget_in_millions)
+summary(budget_lm)
+# P-value close to 0
+# Negative coefficient (-0.0015), R-squared: 0.004711
+
+# Predictor 2 - Duration in hours
+duration_lm = lm(imdb_score~duration_in_hours)
+summary(duration_lm)
+# P-value close to 0
+# Positive coefficient (0.96715), R-squared:  0.1312
+
+# Predictor 3- Total number of languages
+languages_lm = lm(imdb_score~total_number_languages)
+summary(languages_lm)
+# P-value close to 0
+# Positive coefficient (0.07951), R-squared: 0.006559
+
+# Predictor 4 - Total number of actors
+actors_lm = lm(imdb_score~total_number_of_actors)
+summary(actors_lm)
+# P-value close to 0
+# Positive coefficient (0.0103003), R-squared: 0.04715
+
+# Predictor 5 - Total number of directors
+directors_lm = lm(imdb_score~total_number_of_directors)
+summary(directors_lm)
+# P-value: 0.059
+# Positive coefficient (0.09567), R-squared: 0.001193
+
+# Predictor 6 - Total number of producers
+producers_lm = lm(imdb_score~total_number_of_producers)
+summary(producers_lm)
+# P-value: 0.939
+# Positive coefficient (0.0008279), R-squared: 1.981e-06
+
+# Predictor 7 - Total number of production companies
+production_lm = lm(imdb_score~total_number_of_production_companies)
+summary(production_lm)
+# P-value = 0.0871
+# Negative coefficient (-0.014558)
+
+# Predictor 8 - Total number of production countries
+production_countries_lm = lm(imdb_score~total_number_of_production_countries)
+summary(production_countries_lm)
+# P-value = 0.843
+# Negative coefficient (-0.004561)
+
+# Thus, Predictors 1 to 4 are good. We can remove Predictors 5,6,7,8 (i.e. Total number of directors, producers, production companies and production countries)
+
+# Heteroskedasticity test for Predictors 1 to 4
+# If p-value of test<0.05: heteroskedasticity
+# If p-value of test>0.05: no heteroskedasticity
+# library(car)
+
+# Predictor 1 - Budget
+plot(predict(budget_lm), residuals(budget_lm))
+abline(0,0, lty = 2, col = "red")
+ncvTest(budget_lm) 
+# p-value(0.84378)>0.05, No heteroskedasticity present
+
+# Predictor 2 - Duration in hours
+plot(predict(duration_lm), residuals(duration_lm))
+abline(0,0, lty = 2, col = "red")
+ncvTest(duration_lm) 
+# p-value(6.6979e-09)<0.05, Heteroskedasticity present
+# Fixing heteroskedasticity using Sandwich correction
+coeftest(duration_lm, vcov=vcovHC(duration_lm, type="HC1"))
+
+ncvTest(duration_lm)
+# Predictor 3 - Total number of languages
+plot(predict(languages_lm), residuals(languages_lm))
+abline(0,0, lty = 2, col = "red")
+ncvTest(languages_lm) 
+# p-value(0.1868)>0.05, No heteroskedasticity present
+
+# Predictor 4 - Total number of actors
+plot(predict(actors_lm), residuals(actors_lm))
+abline(0,0, lty = 2, col = "red")
+ncvTest(actors_lm) 
+# p-value(2.8653e-05)<0.05, Heteroskedasticity present
+# Fixing heteroskedasticity using Sandwich correction
+coeftest(actors_lm, vcov = vcovHC(actors_lm, type="HC1"))
+
+# Plotting the residual plots
+reg_test = lm(imdb_score~budget_in_millions + duration_in_hours + total_number_languages + total_number_of_actors)
+residualPlots(reg_test)
+
+
+# Testing Non-Linearity
+# Tukey test for non linearity, if less than 0.05 then it doesn't satisfy linearity assumption
+residualPlots(budget_lm)
+# 2.2e-16 then it does not satisfy linearity
+
+residualPlots(duration_lm)
+# 0.0004461 doesn't satisfy linearity
+
+residualPlots(languages_lm)
+# 0.3323 satisfies linearity
+
+residualPlots(actors_lm)
+# 6.022e-08  then it doesn't satisfy linearity 
+
+#-------------------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------------
+
+# Please remove quotes, in case you want to run the models
+
+"""
+# Approach 1: Manually analyzing the predictors using ANOVA Test (Approach 2 is better and used in the final analysis)
+# In this part we manually selected the best fit for each predictor
+
+fit1_1 = lm(imdb_score~budget_in_millions)
+fit1_2 = lm(imdb_score~poly(budget_in_millions,2))
+fit1_3 = lm(imdb_score~poly(budget_in_millions,3))
+fit1_4 = lm(imdb_score~poly(budget_in_millions,4))
+fit1_5 = lm(imdb_score~poly(budget_in_millions,5))
+anova(fit1_1,fit1_2,fit1_3,fit1_4,fit1_5)
+anova(fit1_2,fit1_3)
+#use 3rd degree
+
+fit4_1 = lm(imdb_score~duration_in_hours)
+fit4_2 = lm(imdb_score~poly(duration_in_hours,2))
+fit4_3 = lm(imdb_score~poly(duration_in_hours,3))
+fit4_4 = lm(imdb_score~poly(duration_in_hours,4))
+fit4_5 = lm(imdb_score~poly(duration_in_hours,5))
+anova(fit4_1,fit4_2,fit4_3,fit4_4,fit4_5)
+anova(fit4_2,fit4_3,fit4_4)
+#use 4th degree
+
+fit5_1 = lm(imdb_score~total_number_languages)
+fit5_2 = lm(imdb_score~poly(total_number_languages,2))
+fit5_3 = lm(imdb_score~poly(total_number_languages,3))
+fit5_4 = lm(imdb_score~poly(total_number_languages,4))
+fit5_5 = lm(imdb_score~poly(total_number_languages,5))
+
+anova(fit5_1,fit5_2,fit5_3,fit5_4,fit5_5)
+#use 1st degree because it can be considered linear
+
+
+fit6_1 = lm(imdb_score~total_number_of_actors)
+fit6_2 = lm(imdb_score~poly(total_number_of_actors,2))
+fit6_3 = lm(imdb_score~poly(total_number_of_actors,3))
+fit6_4 = lm(imdb_score~poly(total_number_of_actors,4))
+fit6_5 = lm(imdb_score~poly(total_number_of_actors,5))
+anova(fit6_1,fit6_2,fit6_3,fit6_4,fit6_5)
+#use 2nd degree
+
+#using individual findings of each polynomial, we get the best combination: 
+mreg1 <- lm(imdb_score ~ poly(budget_in_millions,3)+poly(total_number_of_actors,2)+poly(duration_in_hours,4)+total_number_languages+genre_action+genre_adventure+genre_animation+genre_biography+genre_comedy+genre_crime+genre_documentary+genre_drama+genre_family+genre_fantasy+genre_filmnoir+genre_history+genre_horror+genre_musical+genre_romance+genre_scifi+genre_thriller+main_actor1_is_female+main_actor2_is_female+famous_main_actor_1+famous_main_actor_2+famous_director+famous_production_company+lang_english+lang_french+year_1920s+year_1930s+year_1940s+year_1950s+year_1960s+year_1970s+year_1980s+year_1990s+year_2000s+year_1910s+month_1+month_2+month_3+month_4+month_5+month_6+month_7+month_8+month_9+month_10+month_11,data=df1)
+summary(mreg1)
+
+#Adjusted R=0.4055
+#RSE 0.7325
+
+#-------------------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------------
+
+# Approach 2: finding the optimal degrees using for loop to find lowest MSE
+
+minimum = 9999999999
+
+
+
+# for loop over all to find lowest MSE using train test split
+
+for (i in 2:6){
+  for (l in 2:6){
+    for (m in 2:6){
+      MSE_CV = c()
+      for (j in 1:100){
+        sample = sample.split(df1$imdb_score, SplitRatio=0.7)
+        train = subset(df1, sample==TRUE)
+        test = subset(df1, sample==FALSE)
+        mreg2 <- lm(imdb_score ~ poly(budget_in_millions,i)+poly(total_number_of_actors,l)+famous_main_actor_1+famous_main_actor_2+total_number_languages+poly(duration_in_hours,m)+genre_action+genre_adventure+genre_animation+genre_biography+genre_comedy+genre_crime+genre_documentary+genre_drama+genre_family+genre_fantasy+genre_filmnoir+genre_history+genre_horror+genre_musical+genre_romance+genre_scifi+genre_thriller+main_actor1_is_female+main_actor2_is_female+famous_director+famous_production_company+lang_english+lang_french+year_1910s+year_1920s+year_1930s+year_1940s+year_1950s+year_1960s+year_1970s+year_1980s+year_1990s+year_2000s+month_1+month_2+month_3+month_4+month_5+month_6+month_7+month_8+month_9+month_10+month_11,data=train)
+        test$pred = predict(mreg2, test) 
+        test$res = (test$imdb_score - test$pred)
+        test$res_sq = (test$res)^2 
+        MSE_CV = c(MSE_CV, mean(test$res_sq))
+      }
+      if (mean(MSE_CV)<minimum){
+        minimum = mean(MSE_a)
+        optimal = c(i,l,m)
+        
+        
+        
+      }
+    }
+  }
+}
+print(optimal)
+print(minimum)
+# 4 2 4
+# Minimum MSE 0.548
+
+mreg2_best <- lm(imdb_score ~ poly(budget_in_millions,4)+poly(total_number_of_actors,2)+total_number_languages+poly(duration_in_hours,4)+genre_action+genre_adventure+genre_animation+genre_biography+genre_comedy+genre_crime+genre_documentary+genre_drama+genre_family+genre_fantasy+genre_filmnoir+genre_history+genre_horror+genre_musical+genre_romance+genre_scifi+genre_thriller+main_actor1_is_female+main_actor2_is_female+famous_main_actor_1+famous_main_actor_2+famous_director+famous_production_company+lang_english+lang_french+year_1920s+year_1930s+year_1940s+year_1950s+year_1960s+year_1970s+year_1980s+year_1990s+year_2000s+year_1910s+month_1+month_2+month_3+month_4+month_5+month_6+month_7+month_8+month_9+month_10+month_11,data=df1)
+summary(mreg2_best)
+# R squared = 0.7317
+# adj R squared= 0.4068
+
+# K -fold test
+opt = c(0,0,0)
+max = 10000
+
+for ( i in 2:5){
+  for (l in 2:5){
+    for (m in 2:5){
+      MSE_K=c()
+      for( j in 1:50){
+        newmodel = glm(imdb_score ~ poly(budget_in_millions,i)+poly(total_number_of_actors,l)+total_number_languages+poly(duration_in_hours,m)+genre_action+genre_adventure+genre_animation+genre_biography+genre_comedy+genre_crime+genre_documentary+genre_drama+genre_family+genre_fantasy+genre_filmnoir+genre_history+genre_horror+genre_musical+genre_romance+genre_scifi+genre_thriller+main_actor1_is_female+main_actor2_is_female+famous_main_actor_1+famous_main_actor_2+famous_director+famous_production_company+lang_english+lang_french+year_1910s+year_1920s+year_1930s+year_1940s+year_1950s+year_1960s+year_1970s+year_1980s+year_1990s+year_2000s+month_1+month_2+month_3+month_4+month_5+month_6+month_7+month_8+month_9+month_10+month_11,data=df1)
+        MSE_K = c(MSE_K,cv.glm(df1, newmodel, K=10)$delta[1])
+        
+      }
+      if (mean(MSE_K) < max){
+        max = mean(MSE_K)
+        opt = c(i,l,m)
+      }            
+    }
+  }
+}
+print(max)
+print(opt)
+
+best_fit=lm(imdb_score ~ poly(budget_in_millions,4)+poly(total_number_of_actors,2)+total_number_languages+poly(duration_in_hours,4)+genre_action+genre_adventure+genre_animation+genre_biography+genre_comedy+genre_crime+genre_documentary+genre_drama+genre_family+genre_fantasy+genre_filmnoir+genre_history+genre_horror+genre_musical+genre_romance+genre_scifi+genre_thriller+main_actor1_is_female+main_actor2_is_female+famous_main_actor_1+famous_main_actor_2+famous_director+famous_production_company+lang_english+lang_french+year_1920s+year_1930s+year_1940s+year_1950s+year_1960s+year_1970s+year_1980s+year_1990s+year_2000s+year_1910s+month_1+month_2+month_3+month_4+month_5+month_6+month_7+month_8+month_9+month_10+month_11,data=df1)
+summary(best_fit)
+
+# 4 2 4
+# Adjusted r squared: 0.4068  
+# MSE:0.5483383
+# RSE:0.7317
+#--------------------------------------------------------------------------------
+
+# Test if Splines can work
+
+# Spline Model
+
+# 1 knot
+
+k1_1 = quantile(budget_in_millions,0.5)
+k1_2 = quantile(total_number_of_actors,0.5)
+k1_3 = quantile(duration_in_hours,0.5)
+
+# 2 knots
+k_2_1_1 = quantile(budget_in_millions, c(1/3))
+k_2_1_2 = quantile(budget_in_millions, c(2/3))
+
+k_2_2_1 = quantile(total_number_of_actors, c(1/3))
+k_2_2_2 = quantile(total_number_of_actors, c(2/3))
+
+k_2_3_1 = quantile(duration_in_hours, c(1/3))
+k_2_3_2 = quantile(duration_in_hours, c(2/3))
+
+#3 knots
+
+k_3_1_1 = quantile(budget_in_millions, c(0.25))
+k_3_1_2 = quantile(budget_in_millions, c(0.50))
+k_3_1_3 = quantile(budget_in_millions, c(0.750))
+
+k_3_2_1 = quantile(total_number_of_actors, c(0.25))
+k_3_2_2 = quantile(total_number_of_actors, c(0.50))
+k_3_2_3 = quantile(total_number_of_actors, c(0.750))
+
+k_3_3_1 = quantile(duration_in_hours, c(0.25))
+k_3_3_2 = quantile(duration_in_hours, c(0.50))
+k_3_3_3 = quantile(duration_in_hours, c(0.750))
+
+minimum=100000000
+for ( a1 in 1:3){
+  for (b1 in 2:4){
+    for (a2 in 1:3){
+      for (b2 in 2:4){
+        for (a3 in 1:3){
+          for (b3 in 2:4){
+            if (a1==1) knot1=c(k1_1)
+            else if(a1==3) knot1=c(k_3_1_1,k_3_1_2,k_3_1_3)
+            else knot1=c(k_2_1_1,k_2_1_2)
+            
+            if (a2==1) knot2=c(k1_2)
+            else if (a2==3) knot2=c(k_3_2_1,k_3_2_2,k_3_2_3)
+            else knot2=c(k_2_2_1,k_2_2_2)
+            
+            if (a3==1) knot3=c(k1_3)
+            else if (a3==3) knot3=c(k_3_3_1,k_3_3_2,k_3_3_3)
+            else knot3=c(k_2_3_1,k_2_3_2)
+            
+            
+            spline_model =glm(imdb_score ~  bs(budget_in_millions,knots = knot1,degree = b1)+bs(total_number_of_actors,knots = knot2,degree=b2)+total_number_languages+bs(duration_in_hours,knots = knot3,degree=b3)+genre_action+genre_adventure+genre_animation+genre_biography+genre_comedy+genre_crime+genre_documentary+genre_drama+genre_family+genre_fantasy+genre_filmnoir+genre_history+genre_horror+genre_musical+genre_romance+genre_scifi+genre_thriller+main_actor1_is_female+main_actor2_is_female+famous_main_actor_1+famous_main_actor_2+famous_director+famous_production_company+lang_english+lang_french+year_1920s+year_1930s+year_1940s+year_1950s+year_1960s+year_1970s+year_1980s+year_1990s+year_2000s+year_1910s+month_1+month_2+month_3+month_4+month_5+month_6+month_7+month_8+month_9+month_10+month_11,data=df1)
+            
+            cv.error = cv.glm(df1, spline_model, K=10)$delta[1]
+            
+            if (cv.error<minimum){
+              minimum=cv.error
+              optimal=c(a1,a2,a3,b1,b2,b3)
+            }
+            
+            
+          }
+        }
+      }
+    }
+  }
+}
+print(minimum)
+print(optimal)
+# MSE: 0.539405
+# Budget: knots=2 , degree=4=3
+# Number_of_actors:knots=3 , degree=2
+# Duration: knots=2 ,degree=4
+best_spline=lm(imdb_score ~  bs(budget_in_millions,knots = c(k_2_1_1,k_2_1_2),degree = 3)+bs(total_number_of_actors,knots = c(k_3_2_1,k_3_2_2,k_3_2_3),degree=2)+total_number_languages+bs(duration_in_hours,knots = c(k_2_3_1,k_2_3_2),degree=4)+genre_action+genre_adventure+genre_animation+genre_biography+genre_comedy+genre_crime+genre_documentary+genre_drama+genre_family+genre_fantasy+genre_filmnoir+genre_history+genre_horror+genre_musical+genre_romance+genre_scifi+genre_thriller+main_actor1_is_female+main_actor2_is_female+famous_main_actor_1+famous_main_actor_2+famous_director+famous_production_company+lang_english+lang_french+year_1920s+year_1930s+year_1940s+year_1950s+year_1960s+year_1970s+year_1980s+year_1990s+year_2000s+year_1910s+month_1+month_2+month_3+month_4+month_5+month_6+month_7+month_8+month_9+month_10+month_11,data=df1)
+summary(best_spline)
+# Adjusted r squared 0.412
+# R Squared 0.7285
+
+#COMPARING ALL MODELS 
+#-------------------------------------------------------------------------------
+
+# Model 1 using individual models::
+MSE_a=c()
+for ( i in 1:25){
+  modelz1 = glm(imdb_score ~ poly(budget_in_millions,3)+poly(total_number_of_actors,2)+poly(duration_in_hours,4)+total_number_languages+genre_action+genre_adventure+genre_animation+genre_biography+genre_comedy+genre_crime+genre_documentary+genre_drama+genre_family+genre_fantasy+genre_filmnoir+genre_history+genre_horror+genre_musical+genre_romance+genre_scifi+genre_thriller+main_actor1_is_female+main_actor2_is_female+famous_main_actor_1+famous_main_actor_2+famous_director+famous_production_company+lang_english+lang_french+year_1920s+year_1930s+year_1940s+year_1950s+year_1960s+year_1970s+year_1980s+year_1990s+year_2000s+year_1910s+month_1+month_2+month_3+month_4+month_5+month_6+month_7+month_8+month_9+month_10+month_11,data=df1)
+  MSE_a = c(MSE_a,cv.glm(df1, modelz1, K=20)$delta[1])
+}
+cv.error1=mean(MSE_a)
+# Model 2 for loop for MSE using cross val:
+MSE_b = c()
+for (i in 1:25){
+  modelz2 = glm(imdb_score ~ poly(budget_in_millions,4)+poly(total_number_of_actors,2)+total_number_languages+poly(duration_in_hours,4)+genre_action+genre_adventure+genre_animation+genre_biography+genre_comedy+genre_crime+genre_documentary+genre_drama+genre_family+genre_fantasy+genre_filmnoir+genre_history+genre_horror+genre_musical+genre_romance+genre_scifi+genre_thriller+main_actor1_is_female+main_actor2_is_female+famous_main_actor_1+famous_main_actor_2+famous_director+famous_production_company+lang_english+lang_french+year_1920s+year_1930s+year_1940s+year_1950s+year_1960s+year_1970s+year_1980s+year_1990s+year_2000s+year_1910s+month_1+month_2+month_3+month_4+month_5+month_6+month_7+month_8+month_9+month_10+month_11,data=df1)
+  MSE_b = c(MSE_b, cv.glm(df1, modelz2, K=20)$delta[1])
+}
+cv.error2 = mean(MSE_b)
+
+# Model 3 using loop  K-fold cross validation optimal polynomial: 
+MSE_c = c()
+for (i in 1:25){
+  modelz3 = glm(imdb_score ~ poly(budget_in_millions,4)+poly(total_number_of_actors,2)+total_number_languages+poly(duration_in_hours,4)+genre_action+genre_adventure+genre_animation+genre_biography+genre_comedy+genre_crime+genre_documentary+genre_drama+genre_family+genre_fantasy+genre_filmnoir+genre_history+genre_horror+genre_musical+genre_romance+genre_scifi+genre_thriller+main_actor1_is_female+main_actor2_is_female+famous_main_actor_1+famous_main_actor_2+famous_director+famous_production_company+lang_english+lang_french+year_1920s+year_1930s+year_1940s+year_1950s+year_1960s+year_1970s+year_1980s+year_1990s+year_2000s+year_1910s+month_1+month_2+month_3+month_4+month_5+month_6+month_7+month_8+month_9+month_10+month_11,data=df1)
+  MSE_c = c(MSE_c, cv.glm(df1, modelz3, K=20)$delta[1])
+}
+cv.error3 = mean(MSE_c)
+
+# Model 4 using for loops with kfold for splines
+MSE_d=c()
+for ( i in 1:25){
+  modelz4 = glm(imdb_score ~  bs(budget_in_millions,knots = c(k_2_1_1,k_2_1_2),degree = 3)+bs(total_number_of_actors,knots = c(k_3_2_1,k_3_2_2,k_3_2_3),degree=2)+total_number_languages+bs(duration_in_hours,knots = c(k_2_3_1,k_2_3_2),degree=4)+genre_action+genre_adventure+genre_animation+genre_biography+genre_comedy+genre_crime+genre_documentary+genre_drama+genre_family+genre_fantasy+genre_filmnoir+genre_history+genre_horror+genre_musical+genre_romance+genre_scifi+genre_thriller+main_actor1_is_female+main_actor2_is_female+famous_main_actor_1+famous_main_actor_2+famous_director+famous_production_company+lang_english+lang_french+year_1920s+year_1930s+year_1940s+year_1950s+year_1960s+year_1970s+year_1980s+year_1990s+year_2000s+year_1910s+month_1+month_2+month_3+month_4+month_5+month_6+month_7+month_8+month_9+month_10+month_11,data=df1)
+  MSE_d = c(MSE_d,cv.glm(df1, modelz4, K=20)$delta[1])
+}
+cv.error4=mean(MSE_d)
+cat("MSE1:",cv.error1)
+cat("MSE2:",cv.error2)
+cat("MSE3:",cv.error3)
+cat("MSE4:",cv.error4)
+'
+MSE1: 0.5488353
+MSE2: 0.5476347
+MSE3: 0.5479011
+MSE4: 0.5391202
+
+
+
+'
+
+
+
+#-------------------------------------------------------------------------------
+
+# Method 2 using cross validation:
+
+#comparison of MSE between all models
+# mean MSE of individual best fit:
+
+MSE_1=c()
+for (i in 1:100){
+  
+  
+  sample=sample.split(df1$imdb_score, SplitRatio=0.7)
+  train=subset(df1, sample==TRUE)
+  test=subset(df1, sample==FALSE)
+  
+  mreg1 = lm(imdb_score ~ poly(budget_in_millions,3)+poly(total_number_of_actors,2)+poly(duration_in_hours,4)+total_number_languages+genre_action+genre_adventure+genre_animation+genre_biography+genre_comedy+genre_crime+genre_documentary+genre_drama+genre_family+genre_fantasy+genre_filmnoir+genre_history+genre_horror+genre_musical+genre_romance+genre_scifi+genre_thriller+main_actor1_is_female+main_actor2_is_female+famous_main_actor_1+famous_main_actor_2+famous_director+famous_production_company+lang_english+lang_french+year_1920s+year_1930s+year_1940s+year_1950s+year_1960s+year_1970s+year_1980s+year_1990s+year_2000s+year_1910s+month_1+month_2+month_3+month_4+month_5+month_6+month_7+month_8+month_9+month_10+month_11,data=train)
+  
+  
+  test$pred=predict(mreg1, test) 
+  test$res=(test$imdb_score - test$pred)
+  test$res_sq=(test$res)^2 
+  MSE_1=c(MSE_1,mean(test$res_sq))
+  
+  
+  
+}
+
+
+# Find mean MSE for cross validation model 
+MSE_2=c()
+for (i in 1:200){
+  
+  
+  sample=sample.split(df1$imdb_score, SplitRatio=0.7)
+  train=subset(df1, sample==TRUE)
+  test=subset(df1, sample==FALSE)
+  
+  mreg2 <- lm(imdb_score ~ poly(budget_in_millions,4)+poly(total_number_of_actors,2)+total_number_languages+poly(duration_in_hours,4)+genre_action+genre_adventure+genre_animation+genre_biography+genre_comedy+genre_crime+genre_documentary+genre_drama+genre_family+genre_fantasy+genre_filmnoir+genre_history+genre_horror+genre_musical+genre_romance+genre_scifi+genre_thriller+main_actor1_is_female+main_actor2_is_female+famous_main_actor_1+famous_main_actor_2+famous_director+famous_production_company+lang_english+lang_french+year_1920s+year_1930s+year_1940s+year_1950s+year_1960s+year_1970s+year_1980s+year_1990s+year_2000s+year_1910s+month_1+month_2+month_3+month_4+month_5+month_6+month_7+month_8+month_9+month_10+month_11,data=train)
+  
+  
+  test$pred=predict(mreg2, test) 
+  test$res=(test$imdb_score - test$pred)
+  test$res_sq=(test$res)^2 
+  MSE_2=c(MSE_2,mean(test$res_sq))
+  
+  
+  
+}
+
+
+# K fold MSE:
+#Best model: cross validation with for loop
+
+MSE_3=c()
+for (i in 1:200){
+  sample3=sample.split(df1$imdb_score, SplitRatio=0.7)
+  train=subset(df1, sample3==TRUE)
+  test=subset(df1, sample3==FALSE)
+  mreg3=lm(imdb_score ~ poly(budget_in_millions,4)+poly(total_number_of_actors,2)+total_number_languages+poly(duration_in_hours,4)+genre_action+genre_adventure+genre_animation+genre_biography+genre_comedy+genre_crime+genre_documentary+genre_drama+genre_family+genre_fantasy+genre_filmnoir+genre_history+genre_horror+genre_musical+genre_romance+genre_scifi+genre_thriller+main_actor1_is_female+main_actor2_is_female+famous_main_actor_1+famous_main_actor_2+famous_director+famous_production_company+lang_english+lang_french+year_1920s+year_1930s+year_1940s+year_1950s+year_1960s+year_1970s+year_1980s+year_1990s+year_2000s+year_1910s+month_1+month_2+month_3+month_4+month_5+month_6+month_7+month_8+month_9+month_10+month_11,data=train)
+  
+  test$pred=predict(mreg3, test) 
+  test$res=(test$imdb_score - test$pred)
+  test$res_sq=(test$res)^2 
+  MSE_3=c(MSE_3,mean(test$res_sq))
+}
+
+# spline
+MSE_4=c()
+for (i in 1:100){
+  
+  sample4=sample.split(df1$imdb_score, SplitRatio=0.7)
+  train=subset(df1, sample4==TRUE)
+  test=subset(df1, sample4==FALSE)
+  
+  mreg4=lm(imdb_score ~  bs(budget_in_millions,knots = c(k_2_1_1,k_2_1_2),degree = 3)+bs(total_number_of_actors,knots = c(k_3_2_1,k_3_2_2,k_3_2_3),degree=2)+total_number_languages+bs(duration_in_hours,knots = c(k_2_3_1,k_2_3_2),degree=4)+genre_action+genre_adventure+genre_animation+genre_biography+genre_comedy+genre_crime+genre_documentary+genre_drama+genre_family+genre_fantasy+genre_filmnoir+genre_history+genre_horror+genre_musical+genre_romance+genre_scifi+genre_thriller+main_actor1_is_female+main_actor2_is_female+famous_main_actor_1+famous_main_actor_2+famous_director+famous_production_company+lang_english+lang_french+year_1920s+year_1930s+year_1940s+year_1950s+year_1960s+year_1970s+year_1980s+year_1990s+year_2000s+year_1910s+month_1+month_2+month_3+month_4+month_5+month_6+month_7+month_8+month_9+month_10+month_11,data=train)
+  
+  test$pred=predict(mreg4, test) 
+  test$res=(test$imdb_score - test$pred)
+  test$res_sq=(test$res)^2 
+  MSE_4=c(MSE_4,mean(test$res_sq))
+}
+
+cat("Mean MSE for model 1: ",mean(MSE_1))
+cat("Mean MSE for model 2: ",mean(MSE_2))
+cat("Mean MSE for model 3: ",mean(MSE_3))
+cat("Mean MSE for model 4:",mean(MSE_4))
+
+
+'Mean MSE for model 1:  0.5521094
+Mean MSE for model 2:  0.5505814
+Mean MSE for model 3:  0.5523668
+Mean MSE for model 4: 0.5395717
+
+
+'
+# After comparing MSE of all 4 models: We choose the second model, the most robust with lowest MSE
+
+
+"""
+#---------------------------------------------------------------------------------------------------------
+#Our best fit model is as follows:
+best_fit_model <- glm(imdb_score ~ poly(budget_in_millions,4)+poly(total_number_of_actors,2)+total_number_languages+poly(duration_in_hours,4)+genre_action+genre_adventure+genre_animation+genre_biography+genre_comedy+genre_crime+genre_documentary+genre_drama+genre_family+genre_fantasy+genre_filmnoir+genre_history+genre_horror+genre_musical+genre_romance+genre_scifi+genre_thriller+main_actor1_is_female+main_actor2_is_female+famous_main_actor_1+famous_main_actor_2+famous_director+famous_production_company+lang_english+lang_french+year_1920s+year_1930s+year_1940s+year_1950s+year_1960s+year_1970s+year_1980s+year_1990s+year_2000s+year_1910s+month_1+month_2+month_3+month_4+month_5+month_6+month_7+month_8+month_9+month_10+month_11,data=df1)
+summary(best_fit_model)
+
+stargazer(best_fit_model,type='html',title='Results',align = TRUE)
+#Prediction
+dataset <- read.csv("D:/Downloads/40_movies_dataset.csv")
+attach(dataset)
+dataset$famous_main_actor_1 = ifelse(main_actor1_name %in% top_actors, 1, 0)
+dataset$famous_main_actor_2 = ifelse(main_actor2_name %in% top_actors, 1, 0)
+dataset$famous_director = ifelse(main_director_name %in% top_directors, 1, 0)
+attach(dataset)
+
+# Dummifying the languages into English, French, Deutsch, Espanol and others
+dataset$lang_english = ifelse(main_lang == "English", 1, 0)
+dataset$lang_french = ifelse(main_lang == "FranÃ§ais", 1, 0)
+dataset$lang_deutsch = ifelse(main_lang == "Deutsch", 1, 0)
+dataset$lang_spanish = ifelse(main_lang == "EspaÃ±ol", 1, 0)
+attach(dataset)
+
+# Dummifying the production company 
+dataset$famous_production_company = ifelse(main_production_company %in% top_production_companies, 1, 0)
+attach(films)
+
+# Dummifying years: it is more logical to have them as dummies rather than as continuous variables
+# Any movie with year_of_release < 1920 would have all 0 values
+dataset$year_1910s=ifelse( year_of_release<1920,1,0)
+dataset$year_1920s=ifelse(year_of_release>=1920 & year_of_release<1930,1,0)
+dataset$year_1930s=ifelse(year_of_release>=1930 & year_of_release<1940,1,0)
+dataset$year_1940s=ifelse(year_of_release>=1940 & year_of_release<1950,1,0)
+dataset$year_1950s=ifelse(year_of_release>=1950 & year_of_release<1960,1,0)
+dataset$year_1960s=ifelse(year_of_release>=1960 & year_of_release<1970,1,0)
+dataset$year_1970s=ifelse(year_of_release>=1970 & year_of_release<1980,1,0)
+dataset$year_1980s=ifelse(year_of_release>=1980 & year_of_release<1990,1,0)
+dataset$year_1990s=ifelse(year_of_release>=1990 & year_of_release<2000,1,0)
+dataset$year_2000s=ifelse(year_of_release>=2000 & year_of_release<2010,1,0)
+
+attach(dataset)
+
+# Dummify months
+dataset$month_1=ifelse(month_of_release==1,1,0)
+dataset$month_2=ifelse(month_of_release==2,1,0)
+dataset$month_3=ifelse(month_of_release==3,1,0)
+dataset$month_4=ifelse(month_of_release==4,1,0)
+dataset$month_5=ifelse(month_of_release==5,1,0)
+dataset$month_6=ifelse(month_of_release==6,1,0)
+dataset$month_7=ifelse(month_of_release==7,1,0)
+dataset$month_8=ifelse(month_of_release==8,1,0)
+dataset$month_9=ifelse(month_of_release==9,1,0)
+dataset$month_10=ifelse(month_of_release==10,1,0)
+dataset$month_11=ifelse(month_of_release==11,1,0)
+
+attach(dataset)
+
+# Dropping the predictors that won't have an impact on target variable 
+# title, imdb_id, imdb_url don't provide any useful information 
+# The columns actor 1 & 2 names, director name and main language have been dummified, so the original columns are dropped
+# Others were intuitively taken out 
+
+df4 = subset(dataset, select = -c(title, imdb_id, imdb_url, main_lang, main_actor1_name, main_actor2_name, main_actor3_name, main_actor3_is_female, main_director_name, main_producer_name,editor_name, main_production_company, main_production_country,month_of_release,year_of_release) )
+attach(df4)
+
+df4 = subset(df4, select = -c(genre_realitytv,genre_music,genre_western,genre_war,genre_sport,genre_shortfilm,main_director_is_female,lang_deutsch,lang_spanish) )
+attach(df4)
+best_fit_model <- glm(imdb_score ~ poly(budget_in_millions,4)+poly(total_number_of_actors,2)+total_number_languages+poly(duration_in_hours,4)+genre_action+genre_adventure+genre_animation+genre_biography+genre_comedy+genre_crime+genre_documentary+genre_drama+genre_family+genre_fantasy+genre_filmnoir+genre_history+genre_horror+genre_musical+genre_romance+genre_scifi+genre_thriller+main_actor1_is_female+main_actor2_is_female+famous_main_actor_1+famous_main_actor_2+famous_director+famous_production_company+lang_english+lang_french+year_1920s+year_1930s+year_1940s+year_1950s+year_1960s+year_1970s+year_1980s+year_1990s+year_2000s+year_1910s+month_1+month_2+month_3+month_4+month_5+month_6+month_7+month_8+month_9+month_10+month_11,data=df1)
+
+results=predict(best_fit_model,df4)
+df_results=data.frame(results)
+df_results=df_results[c('title','results')]
